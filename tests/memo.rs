@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use memo_derive::memo;
+use memo_attribute::memo;
 
 #[memo]
 pub fn fib(n: usize) -> usize {
