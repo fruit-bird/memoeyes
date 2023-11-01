@@ -1,19 +1,19 @@
 use std::collections::HashMap;
 
-use memo_attribute::memo;
+// use memo_attribute::memo;
 
-#[memo]
-fn auto_fib(n: usize) -> usize {
+// #[memo]
+fn auto_fib(n: u128) -> u128 {
     if n < 2 {
         return n;
     }
     auto_fib(n - 1) + auto_fib(n - 2)
 }
 
-/// What `#[memo]` should expand into
-fn manual_memo_fib(n: usize) -> usize {
-    fn fib_internal(n: usize, memo: &mut HashMap<usize, usize>) -> usize {
-        if let Some(result) = memo.get(&n) {
+// What `#[memo] auto_fib(...)` should expand into
+fn manual_memo_fib(n: u128) -> u128 {
+    fn fib_internal(n: u128, memo: &mut HashMap<u128, u128>) -> u128 {
+        if let Some(result) = memo.get(&(n)) {
             return result.clone();
         }
 
@@ -33,8 +33,8 @@ fn manual_memo_fib(n: usize) -> usize {
 }
 
 #[test]
-fn fib_test() {
-    let big = manual_memo_fib(60);
+fn manual_fib_test() {
+    let big = manual_memo_fib(186);
     println!("{}", big);
 }
 

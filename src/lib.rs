@@ -1,4 +1,5 @@
 mod expand;
+mod replace;
 
 use proc_macro::TokenStream;
 use syn::{parse_macro_input, Error, ItemFn};
