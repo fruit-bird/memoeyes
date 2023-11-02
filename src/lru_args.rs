@@ -21,7 +21,7 @@ impl Parse for LruArgs {
 
         if max_ident.to_string() != LRU_ARGS_IDENT {
             return Err(Error::new(
-                Span::call_site(),
+                max_ident.span(),
                 format!("#[memo(max = {})]", cap),
             ));
         }
