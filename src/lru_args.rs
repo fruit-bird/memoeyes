@@ -1,4 +1,4 @@
-use proc_macro2::{Ident, Span};
+use proc_macro2::Ident;
 use std::num::NonZeroUsize;
 use syn::{
     parse::{Parse, ParseStream},
