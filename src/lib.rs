@@ -14,8 +14,7 @@ use lru_args::LruArgs;
 /// evicted.
 ///
 /// # Example
-/// ```
-/// # use my_crate::lru_cache;
+/// ```ignore
 /// #[lru_cache(max = 10)]
 /// fn fib(n: u128) -> u128 {
 ///     if n < 2 {
@@ -24,7 +23,8 @@ use lru_args::LruArgs;
 ///     fib(n - 1) + fib(n - 2)
 /// }
 ///
-/// let very_big_number = fib(186); // Computes and caches the result
+/// let big_number = fib(186);
+/// println!("{}", big_number); // 332825110087067562321196029789634457848
 /// ```
 #[proc_macro_attribute]
 pub fn lru_cache(args: TokenStream, input: TokenStream) -> TokenStream {

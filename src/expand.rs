@@ -67,7 +67,7 @@ pub fn lru_cache_impl(parsed_args: LruArgs, parsed_input: ItemFn) -> Result<Toke
             #cache_ident.put((#(#input_names),*), result);
 
             // SAFETY: We just inserted the value
-            FIB_CACHE.get(&n).unwrap_unchecked()
+            FIB_CACHE.get(&n).unwrap()
         };
 
         *result
