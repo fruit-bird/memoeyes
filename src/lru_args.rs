@@ -19,7 +19,7 @@ impl Parse for LruArgs {
         let eq_token = input.parse()?;
         let cap = input.parse::<LitInt>()?.base10_parse::<NonZeroUsize>()?;
 
-        if max_ident.to_string() != LRU_ARGS_IDENT {
+        if max_ident != LRU_ARGS_IDENT {
             return Err(Error::new(
                 max_ident.span(),
                 format!("#[memo(max = {})]", cap),

@@ -6,5 +6,6 @@ todo!()
 
 # TODO
 - [x] macro w/ global static cache
-- [ ] macro that changes the function signature to add a hashmap
+- [x] macro that changes the function signature to add a hashmap
+- [ ] Combine both into a single macro
 - [ ] docs

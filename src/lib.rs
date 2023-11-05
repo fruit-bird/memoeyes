@@ -1,3 +1,4 @@
+mod add_fn_arg;
 mod expand;
 mod lru_args;
 
@@ -24,7 +25,8 @@ use lru_args::LruArgs;
 /// }
 ///
 /// let big_number = fib(186);
-/// println!("{}", big_number); // 332825110087067562321196029789634457848
+/// println!("{}", big_number);
+/// // Output: 332825110087067562321196029789634457848
 /// ```
 #[proc_macro_attribute]
 pub fn lru_cache(args: TokenStream, input: TokenStream) -> TokenStream {
@@ -32,6 +34,15 @@ pub fn lru_cache(args: TokenStream, input: TokenStream) -> TokenStream {
     let parsed_args = parse_macro_input!(args as LruArgs);
 
     expand::lru_cache_impl(parsed_args, parsed_input)
+        .unwrap_or_else(Error::into_compile_error)
+        .into()
+}
+
+#[proc_macro_attribute]
+pub fn memo(_args: TokenStream, input: TokenStream) -> TokenStream {
+    let parsed_input = parse_macro_input!(input as ItemFn);
+
+    expand::memo_impl(parsed_input)
         .unwrap_or_else(Error::into_compile_error)
         .into()
 }
