@@ -47,30 +47,20 @@ pub fn lru_cache_impl(parsed_args: LruArgs, parsed_input: ItemFn) -> Result<Toke
             Lazy::new(|| LruCache::new(unsafe { NonZeroUsize::new_unchecked(#lru_cap) }));
     };
 
-    // NB: From here we here we assume that the function
-    // returns on the final line of the function w/o any ifs or matches
-
     // SAFETY: function body cannot be empty
     // since we guard against functions that return () earlier
-    let return_stmt = parsed_input.block.stmts.last().unwrap();
-    let other_stmts = &parsed_input.block.stmts[..parsed_input.block.stmts.len() - 1];
-
+    let fn_body_block = parsed_input.block;
     let fn_block_tokens = quote! {
         {
-            #(#other_stmts)*
-            let result = unsafe {
+            unsafe {
                 if let Some(result) = #cache_ident.get(&(#(#input_names),*)) {
                     return *result;
                 }
 
-                let result = #return_stmt;
+                let result = { #fn_body_block };
                 #cache_ident.put((#(#input_names),*), result);
-
-                // SAFETY: We just inserted the value
-                FIB_CACHE.get(&n).unwrap()
-            };
-
-            *result
+                result
+            }
         }
     };
 
@@ -82,7 +72,6 @@ pub fn lru_cache_impl(parsed_args: LruArgs, parsed_input: ItemFn) -> Result<Toke
         #(#attrs)* #vis #sig #fn_block_tokens
     };
 
-    // return Err(Error::new(Span::call_site(), tokens));
     Ok(tokens)
 }
 
@@ -155,9 +144,9 @@ pub fn memo_impl(parsed_input: ItemFn) -> Result<TokenStream2> {
     sig.inputs.push(memo);
     let block = new_block_tokens;
 
-    let memoed_fn_tokens = quote! {
+    let tokens = quote! {
         #(#attrs)* #vis #sig #block
     };
 
-    Ok(memoed_fn_tokens)
+    Ok(tokens)
 }
