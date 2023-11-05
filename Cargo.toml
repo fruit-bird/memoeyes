@@ -5,6 +5,7 @@ authors = ["fruit-bird"]
 edition = "2021"
 description = "Procedural macros for automatic memoization"
 repository = "https://github.com/fruit-bird/memoeyes"
+documentation = "https://docs.rs/memoeyes"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 keywords = ["memoization", "macros"]
