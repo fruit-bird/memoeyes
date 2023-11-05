@@ -1,36 +1,16 @@
 use proc_macro2::{Span, TokenStream as TokenStream2};
 use quote::{format_ident, quote, ToTokens};
-use std::collections::VecDeque;
-use syn::{Error, FnArg, ItemFn, Pat, PatType, Receiver, Result, ReturnType};
+use syn::{Error, FnArg, ItemFn, Pat, PatType, Result, ReturnType};
 
-use crate::replace::Replace;
+use crate::{add_fn_arg::AddFnArg, lru_args::LruArgs};
 
-/// NEW TODO: push a `&mut HashMap` as an fn arg
-///
-/// ```ignore
-/// fn memoized_sum(
-///     a: usize,
-///     b: usize
-///     memo: &mut HashMap<(usize, usize), usize>,
-/// ) -> usize {
-///     if let Some(&result) = memo.get(&(a, b)) {
-///         return result;
-///     }
-///
-///     let result = a + b + memoized_sum(memo, a - 1, b - 1);
-///     memo.insert((a, b), result);
-///     result
-/// }
-/// ```
-pub fn memo_impl(mut parsed_input: ItemFn) -> Result<TokenStream2> {
-    let mut new_fn = parsed_input.clone();
+pub fn lru_cache_impl(parsed_args: LruArgs, parsed_input: ItemFn) -> Result<TokenStream2> {
+    let lru_cap = parsed_args.cap.get();
 
-    let fnarg_types = parsed_input.sig.inputs.iter().filter_map(|arg| match arg {
-        FnArg::Typed(PatType { ty, .. }) => Some(ty),
-        FnArg::Receiver(Receiver { ty: _, .. }) => None,
-    });
+    let fn_name = parsed_input.sig.ident.to_string().to_uppercase();
+    let cache_ident = format_ident!("{}_CACHE", fn_name);
 
-    let fnarg_names = parsed_input
+    let input_names = parsed_input
         .sig
         .inputs
         .iter()
@@ -43,57 +23,144 @@ pub fn memo_impl(mut parsed_input: ItemFn) -> Result<TokenStream2> {
         })
         .collect::<Vec<_>>();
 
-    let return_type = match parsed_input.sig.output {
-        ReturnType::Type(_arrow, ty) => ty,
+    if input_names.is_empty() {
+        return Err(Error::new(
+            Span::call_site(),
+            "There is no use in memoizing functions that don't have any inputs",
+        ));
+    }
+
+    let input_tys = parsed_input.sig.inputs.iter().filter_map(|arg| match arg {
+        FnArg::Typed(PatType { ty, .. }) => Some(ty),
+        FnArg::Receiver(_) => None,
+    });
+
+    let return_ty = match parsed_input.sig.output {
+        ReturnType::Type(_, ref ty) => ty,
         ReturnType::Default => {
             return Err(Error::new(
                 Span::call_site(),
-                // double triple check this is correct, you never know
-                "There is no use in memoizing functions that return ()",
+                "There is no use in memoizing functions that don't return",
             ));
         }
     };
 
-    let memo_fnarg = quote! {
-        memo: &mut std::collections::HashMap<(#(#fnarg_types),*), #return_type>
+    let cache_tokens = quote! {
+        use lru::LruCache;
+        use once_cell::sync::Lazy;
+        use std::num::NonZeroUsize;
+
+        static mut #cache_ident: Lazy<LruCache<(#(#input_tys),*), #return_ty>> =
+            Lazy::new(|| LruCache::new(unsafe { NonZeroUsize::new_unchecked(#lru_cap) }));
     };
 
-    let memo_early_return_stmt = quote! {
-        if let Some(result) = memo.get(&(#(#fnarg_names),*)) {
-            return result.clone();
+    // SAFETY: function body cannot be empty
+    // since we guard against functions that return () earlier
+    let fn_body_block = parsed_input.block;
+    let fn_block_tokens = quote! {
+        {
+            unsafe {
+                if let Some(result) = #cache_ident.get(&(#(#input_names),*)) {
+                    return *result;
+                }
+
+                let result = { #fn_body_block };
+                #cache_ident.put((#(#input_names),*), result);
+                result
+            }
         }
     };
 
-    let fn_name = &parsed_input.sig.ident;
-    let new_fn_name = format_ident!("{}_internal", fn_name);
+    let attrs = parsed_input.attrs;
+    let vis = parsed_input.vis;
+    let sig = parsed_input.sig;
+    let tokens = quote! {
+        #cache_tokens
+        #(#attrs)* #vis #sig #fn_block_tokens
+    };
 
-    let mut internal_fn_stmts = parsed_input.block.stmts;
-    // HERE CALL .replace(from, to) and call the var `internal_fn_stmts`
-    let return_stmt = internal_fn_stmts.pop().unwrap();
-    let internal_fn_stmts_wo_last = internal_fn_stmts;
+    Ok(tokens)
+}
 
-    let updated_internal_fn_stmts = quote! {
-        #memo_early_return_stmt
-        #(#internal_fn_stmts_wo_last)*
+pub fn memo_impl(parsed_input: ItemFn) -> Result<TokenStream2> {
+    let input_names = parsed_input
+        .sig
+        .inputs
+        .iter()
+        .filter_map(|arg| match arg {
+            FnArg::Typed(PatType { pat, .. }) => match **pat {
+                Pat::Ident(ref ident) => Some(ident),
+                _ => None,
+            },
+            FnArg::Receiver(_) => None,
+        })
+        .collect::<Vec<_>>();
 
-        let result = #return_stmt;
-        memo.insert(&(#(#fnarg_names),*), result);
+    if input_names.is_empty() {
+        return Err(Error::new(
+            Span::call_site(),
+            "There is no use in memoizing functions that don't have any inputs",
+        ));
+    }
+
+    let input_tys = parsed_input.sig.inputs.iter().filter_map(|arg| match arg {
+        FnArg::Typed(PatType { ty, .. }) => Some(ty),
+        FnArg::Receiver(_) => None,
+    });
+
+    let return_ty = match parsed_input.sig.output {
+        ReturnType::Type(_, ref ty) => ty,
+        ReturnType::Default => {
+            return Err(Error::new(
+                Span::call_site(),
+                "There is no use in memoizing functions that don't return",
+            ));
+        }
+    };
+
+    let memo_tokens =
+        quote! { memo: &mut std::collections::HashMap<(#(#input_tys),*), #return_ty> };
+    let memo = syn::parse2::<FnArg>(memo_tokens)?;
+
+    let memo_check_tokens = quote! {
+        if let Some(result) = memo.get(&(#(#input_names),*)) {
+            return *result;
+        }
+    };
+
+    let fn_ident = &parsed_input.sig.ident;
+    let arg_tokens = &quote! { memo };
+    let updated_fn_block_tokens = parsed_input
+        .block
+        .stmts
+        .iter()
+        .map(|stmt| stmt.to_token_stream().add_fn_arg(fn_ident, arg_tokens));
+
+    let fn_body_and_memo_insert = quote! {
+        let result = {
+            #(#updated_fn_block_tokens)*
+        };
+        memo.insert((#(#input_names),*), result);
         result
     };
 
-    // let replaced_recursive_fn_name = internal_fn_stmts
-    //     .iter()
-    //     .map(|stmt| stmt.to_token_stream().replace(&fn_name, &new_fn_name));
+    let new_block_tokens = quote! {
+        {
+            #memo_check_tokens
+            #fn_body_and_memo_insert
+        }
+    };
 
-    // return Err(Error::new(Span::call_site(), updated_internal_fn_stmts));
+    // Rebuilding the function
+    let attrs = parsed_input.attrs;
+    let vis = parsed_input.vis;
+    let mut sig = parsed_input.sig;
+    sig.inputs.push(memo);
+    let block = new_block_tokens;
 
-    // finished with internal function, now for the new fn
-    let mut new_fn_stmts = VecDeque::from(new_fn.block.stmts);
+    let tokens = quote! {
+        #(#attrs)* #vis #sig #block
+    };
 
-    // modifying the original function
-    parsed_input.sig.ident = format_ident!("{}_internal", parsed_input.sig.ident);
-    // parsed_input.sig.inputs.push(memo_fnarg);
-    parsed_input.block.stmts = Vec::from(new_fn_stmts);
-
-    todo!()
+    Ok(tokens)
 }
