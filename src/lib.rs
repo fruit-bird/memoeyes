@@ -38,6 +38,31 @@ pub fn lru_cache(args: TokenStream, input: TokenStream) -> TokenStream {
         .into()
 }
 
+/// The `#[memo]` procedural macro automatically adds memoization to a function.
+/// Memoization is a technique that caches the results of expensive function calls
+/// and reuses them when the same inputs occur again.
+/// This can significantly improve the performance of recursive or repetitive functions.
+/// 
+/// # Usage
+/// To use the memo macro, annotate a function with `#[memo]`.
+/// The macro will generate code to handle memoization by adding a `&mut HashMap` argument to the function
+/// and modifying the function's block to check the cache before performing the computation.
+/// ```ignore
+/// #[memo]
+/// fn fib(n: u128) -> u128 {
+///     if n < 2 {
+///         return n;
+///     }
+///     fib(n - 1) + fib(n - 2)
+/// }
+/// 
+/// fn main() {
+///     let mut memo = HashMap::new();
+///     let result = fib(186, &mut memo);
+///     println!("{}", result);
+///     // 332825110087067562321196029789634457848
+/// }
+/// ```
 #[proc_macro_attribute]
 pub fn memo(_args: TokenStream, input: TokenStream) -> TokenStream {
     let parsed_input = parse_macro_input!(input as ItemFn);
