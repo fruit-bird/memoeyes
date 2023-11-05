@@ -1,11 +1,9 @@
-# Memoization Macro
+# Memoeyes 👁️
 
+Two procedual macros for automatically implementing memoization for your functions
 ```rust
 todo!()
 ```
 
-# TODO
-- [x] macro w/ global static cache
-- [x] macro that changes the function signature to add a hashmap
-- [ ] Combine both into a single macro
-- [ ] docs
+## What is This?
+Wanted to get more familiar with function memoization, and wanted to learn attribute-like macros. Worked itself out

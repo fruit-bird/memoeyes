@@ -1,4 +1,4 @@
-use memo_attribute::lru_cache;
+use memoeyes::lru_cache;
 
 #[lru_cache(max = 100)]
 fn fib(n: u128) -> u128 {

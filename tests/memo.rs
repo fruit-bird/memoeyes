@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use memo_attribute::memo;
+use memoeyes::memo;
 
 #[memo]
 fn fib(n: u128) -> u128 {
