@@ -7,11 +7,6 @@ use syn::{
 
 const LRU_ARGS_IDENT: &str = "max";
 
-/// # Example
-/// ```
-/// #[memo(max = 100)]
-/// fn foo()
-/// ```
 pub struct LruArgs {
     pub max_ident: Ident,
     pub eq_token: Token![=],
