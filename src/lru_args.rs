@@ -22,7 +22,7 @@ impl Parse for LruArgs {
         if max_ident != LRU_ARGS_IDENT {
             return Err(Error::new(
                 max_ident.span(),
-                format!("#[memo(max = {})]", cap),
+                format!("#[memo({} = {})]", LRU_ARGS_IDENT, cap),
             ));
         }
 
