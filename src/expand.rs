@@ -23,6 +23,13 @@ pub fn lru_cache_impl(parsed_args: LruArgs, parsed_input: ItemFn) -> Result<Toke
         })
         .collect::<Vec<_>>();
 
+    if input_names.is_empty() {
+        return Err(Error::new(
+            Span::call_site(),
+            "There is no use in memoizing functions that don't have any inputs",
+        ));
+    }
+
     let input_tys = parsed_input.sig.inputs.iter().filter_map(|arg| match arg {
         FnArg::Typed(PatType { ty, .. }) => Some(ty),
         FnArg::Receiver(_) => None,
@@ -88,6 +95,13 @@ pub fn memo_impl(parsed_input: ItemFn) -> Result<TokenStream2> {
             FnArg::Receiver(_) => None,
         })
         .collect::<Vec<_>>();
+
+    if input_names.is_empty() {
+        return Err(Error::new(
+            Span::call_site(),
+            "There is no use in memoizing functions that don't have any inputs",
+        ));
+    }
 
     let input_tys = parsed_input.sig.inputs.iter().filter_map(|arg| match arg {
         FnArg::Typed(PatType { ty, .. }) => Some(ty),
