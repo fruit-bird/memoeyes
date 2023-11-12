@@ -1,15 +1,11 @@
 use proc_macro2::{Span, TokenStream as TokenStream2};
 use quote::{format_ident, quote, ToTokens};
+use std::num::NonZeroUsize;
 use syn::{Error, FnArg, ItemFn, Pat, PatType, Result, ReturnType};
 
 use crate::{add_fn_arg::AddFnArg, lru_args::LruArgs};
 
-pub fn lru_cache_impl(parsed_args: LruArgs, parsed_input: ItemFn) -> Result<TokenStream2> {
-    let lru_cap = parsed_args.cap.get();
-
-    let fn_name = parsed_input.sig.ident.to_string().to_uppercase();
-    let cache_ident = format_ident!("{}_CACHE", fn_name);
-
+pub fn lru_cache_impl(parsed_args: LruArgs, mut parsed_input: ItemFn) -> Result<TokenStream2> {
     let input_names = parsed_input
         .sig
         .inputs
@@ -45,6 +41,9 @@ pub fn lru_cache_impl(parsed_args: LruArgs, parsed_input: ItemFn) -> Result<Toke
         }
     };
 
+    let lru_cap = parsed_args.cap.base10_parse::<NonZeroUsize>()?.get();
+    let fn_name = parsed_input.sig.ident.to_string().to_uppercase();
+    let cache_ident = format_ident!("{}_CACHE", fn_name);
     let cache_tokens = quote! {
         use lru::LruCache;
         use once_cell::sync::Lazy;
@@ -54,8 +53,6 @@ pub fn lru_cache_impl(parsed_args: LruArgs, parsed_input: ItemFn) -> Result<Toke
             Lazy::new(|| LruCache::new(unsafe { NonZeroUsize::new_unchecked(#lru_cap) }));
     };
 
-    // SAFETY: function body cannot be empty
-    // since we guard against functions that return () earlier
     let fn_body_block = parsed_input.block;
     let fn_block_tokens = quote! {
         {
@@ -71,18 +68,15 @@ pub fn lru_cache_impl(parsed_args: LruArgs, parsed_input: ItemFn) -> Result<Toke
         }
     };
 
-    let attrs = parsed_input.attrs;
-    let vis = parsed_input.vis;
-    let sig = parsed_input.sig;
-    let tokens = quote! {
-        #cache_tokens
-        #(#attrs)* #vis #sig #fn_block_tokens
-    };
+    parsed_input.block = syn::parse2(fn_block_tokens)?;
 
-    Ok(tokens)
+    Ok(quote! {
+        #cache_tokens
+        #parsed_input
+    })
 }
 
-pub fn memo_impl(parsed_input: ItemFn) -> Result<TokenStream2> {
+pub fn memo_impl(mut parsed_input: ItemFn) -> Result<TokenStream2> {
     let input_names = parsed_input
         .sig
         .inputs
@@ -151,16 +145,9 @@ pub fn memo_impl(parsed_input: ItemFn) -> Result<TokenStream2> {
         }
     };
 
-    // Rebuilding the function
-    let attrs = parsed_input.attrs;
-    let vis = parsed_input.vis;
-    let mut sig = parsed_input.sig;
-    sig.inputs.push(memo);
-    let block = new_block_tokens;
+    // Modifying the function
+    parsed_input.sig.inputs.push(memo);
+    parsed_input.block = syn::parse2(new_block_tokens)?;
 
-    let tokens = quote! {
-        #(#attrs)* #vis #sig #block
-    };
-
-    Ok(tokens)
+    Ok(quote! { #parsed_input })
 }

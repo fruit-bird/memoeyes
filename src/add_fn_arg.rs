@@ -17,7 +17,7 @@ impl AddFnArg for TokenStream2 {
                 TokenTree::Group(group) if inside_function_call => {
                     let delimiter = Delimiter::None;
                     let stream = group.stream().add_fn_arg(fn_ident, arg_tokens);
-                    let group_tokens = Group::new(delimiter, stream).into_token_stream();
+                    let group_tokens = Group::new(delimiter, stream);
 
                     inside_function_call = false;
                     quote! { (#group_tokens, #arg_tokens) }
