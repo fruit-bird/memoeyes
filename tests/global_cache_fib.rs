@@ -1,6 +1,6 @@
 use memoeyes::lru_cache;
 
-#[lru_cache(max = 100)]
+#[lru_cache(max = 5)]
 fn fib(n: u128) -> u128 {
     if n < 2 {
         return n;

@@ -13,6 +13,8 @@ fn fib(n: u128) -> u128 {
 #[test]
 fn memoized_fib_test() {
     let mut memo = HashMap::new();
-    let _big = fib(186, &mut memo);
+    let big = fib(186, &mut memo);
+
     println!("{:#?}", memo);
+    assert_eq!(big, 332825110087067562321196029789634457848);
 }
